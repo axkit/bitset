@@ -66,37 +66,37 @@ func TestBitSet_SetMuilti(t *testing.T) {
 	var tc = []struct {
 		bitpos     uint // target bit pos
 		eslicelen  uint // expected slice len
-		ecnt       uint // expected max cnt
 		byteIndex  int  // slice index where bitpos should belong to
 		eByteValue byte // expected byte value
+		allocated  bool
 	}{
 		{
 			bitpos:     0,
 			eslicelen:  1,
-			ecnt:       1,
 			byteIndex:  0,
 			eByteValue: 1,
+			allocated:  false,
 		},
 		{
 			bitpos:     1,
 			eslicelen:  1,
-			ecnt:       2,
 			byteIndex:  0,
 			eByteValue: 3,
+			allocated:  true,
 		},
 		{
 			bitpos:     9,
 			eslicelen:  2,
-			ecnt:       10,
 			byteIndex:  1,
 			eByteValue: 2,
+			allocated:  false,
 		},
 	}
 
 	a := BitSet{}
 
 	for i := range tc {
-		if a.InSet(tc[i].bitpos) {
+		if a.IsAllocated(tc[i].bitpos) != tc[i].allocated {
 			t.Errorf("test case %d. Failed check #1", i)
 		}
 
@@ -112,9 +112,6 @@ func TestBitSet_SetMuilti(t *testing.T) {
 			t.Errorf("test case %d. Failed check #4", i)
 		}
 
-		if a.Len() != tc[i].ecnt {
-			t.Errorf("test case %d. Failed check #5", i)
-		}
 	}
 
 }
@@ -170,5 +167,109 @@ func TestBitSet_AreSet(t *testing.T) {
 
 		}
 	}
+}
+func TestBitSet_String(t *testing.T) {
 
+	var tc = []struct {
+		bitpos []uint // bit set
+		exp    string // expected result
+	}{
+		{
+			bitpos: []uint{0, 1, 2, 8},
+			exp:    "0701",
+		},
+		{
+			bitpos: []uint{},
+			exp:    "",
+		},
+		{
+			bitpos: []uint{0, 8, 16, 24},
+			exp:    "01010101",
+		},
+		{
+			bitpos: []uint{0, 1, 2, 3, 4, 5, 6, 7},
+			exp:    "ff",
+		},
+	}
+
+	for i := range tc {
+
+		a := BitSet{}
+		for j := range tc[i].bitpos {
+			a.Set(tc[i].bitpos[j])
+		}
+		if s := a.String(); s != tc[i].exp {
+			t.Errorf("test case %d. Failed check #1. Expected %s, got %s", i, tc[i].exp, s)
+		}
+
+	}
+}
+func TestParse(t *testing.T) {
+
+	var tc = []struct {
+		bitpos []uint
+	}{
+		{
+			bitpos: []uint{1, 2, 8, 17},
+		},
+		{
+			bitpos: []uint{81},
+		},
+		{
+			bitpos: []uint{100},
+		},
+	}
+
+	for i := range tc {
+		a := BitSet{}
+		for j := range tc[i].bitpos {
+			a.Set(tc[i].bitpos[j])
+		}
+		s := a.String()
+		b := Parse([]byte(s))
+		if s != b.String() {
+			t.Errorf("test case %d. Failed check #1.  Expected %s %v, got %s %v", i, s, a, b.String(), b)
+		}
+
+		if !AreSet([]byte(s), tc[i].bitpos...) {
+			t.Errorf("test case %d. Failed check #2.", i)
+		}
+	}
+
+	bs := Parse([]byte{})
+	if bs.Len() > 0 {
+		t.Error("parsing empty string failed")
+	}
+
+}
+
+func TestNew(t *testing.T) {
+	var tc = []struct {
+		size uint
+		elen int // expected slice len in bytes
+	}{
+		{
+			size: 1,
+			elen: 1,
+		},
+		{
+			size: 8,
+			elen: 1,
+		},
+		{
+			size: 15,
+			elen: 2,
+		},
+		{
+			size: 65,
+			elen: 9,
+		},
+	}
+
+	for i := range tc {
+		a := New(tc[i].size)
+		if len(a.mask) != tc[i].elen {
+			t.Errorf("test case %d. Failed check #1", i)
+		}
+	}
 }

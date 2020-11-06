@@ -8,12 +8,22 @@ import (
 // BitSet holds set of bits using slice of bytes.
 type BitSet struct {
 	mask []uint8
-	cnt  uint
 }
 
-// Set sets bit with position bitpos to 1. Extends internal storage if it's required.
-func (bs *BitSet) Set(bitpos uint) {
-	bs.set(bitpos, true)
+// New creates BitSet with allocated space for size amount of bits.
+func New(size uint) BitSet {
+	i := size / 8
+	if size%8 > 0 {
+		i++
+	}
+	return BitSet{mask: make([]byte, i)}
+}
+
+// Set sets bits to 1. Extends internal storage if it's required.
+func (bs *BitSet) Set(bitpos ...uint) {
+	for _, u := range bitpos {
+		bs.set(u, true)
+	}
 }
 
 // Reset sets bit with position bitpos to 0. Does not resize internal storage.
@@ -29,14 +39,9 @@ func (bs *BitSet) set(bitpos uint, isSet bool) {
 	l := uint(len(bs.mask))
 	switch {
 	case n == 0 && l == 0:
-		// mask is empty and set comes to the bit 0..7
 		(*bs).mask = []byte{0}
 	case n >= l:
 		(*bs).mask = append((*bs).mask, make([]byte, n-l+1)...)
-	}
-
-	if bitpos >= bs.cnt {
-		bs.cnt = bitpos + 1
 	}
 
 	if isSet {
@@ -50,7 +55,7 @@ func (bs *BitSet) set(bitpos uint, isSet bool) {
 // IsSet returns true if bit with position bitpos is 1.
 // Returns false if bitpos above maximal setted bitpos.
 func (bs *BitSet) IsSet(bitpos uint) bool {
-	if bitpos > bs.cnt {
+	if bitpos > bs.Len() {
 		return false
 	}
 	idx := bitpos / 8
@@ -58,14 +63,14 @@ func (bs *BitSet) IsSet(bitpos uint) bool {
 	return bs.mask[idx]&(1<<pos) == 1<<pos
 }
 
-// InSet returns true if space for the bit with position bitpos is allocated.
-func (bs *BitSet) InSet(bitpos uint) bool {
-	return len(bs.mask) > 0 && bitpos < bs.cnt
+// IsAllocated returns true if space for the bit with position bitpos is allocated already.
+func (bs *BitSet) IsAllocated(bitpos uint) bool {
+	return len(bs.mask) > 0 && bitpos < bs.Len()
 }
 
-// Len return max bitpos stored in the set.
+// Len returns len of allocated byte slice.
 func (bs *BitSet) Len() uint {
-	return bs.cnt
+	return uint(len(bs.mask) * 8)
 }
 
 // AreSet returns true if every bit with position bit pos is equal 1.
@@ -74,7 +79,8 @@ func (bs *BitSet) AreSet(bitpos ...uint) bool {
 	if len(bitpos) == 0 {
 		return false
 	}
-	if bs.cnt == 0 {
+
+	if len(bs.mask) == 0 {
 		return false
 	}
 
@@ -86,15 +92,46 @@ func (bs *BitSet) AreSet(bitpos ...uint) bool {
 	return true
 }
 
+// String returns hex representation of bit array. Every 8 bits as 2 hex digits.
+func (bs *BitSet) String() string {
+	if len(bs.mask) == 0 {
+		return ""
+	}
+	return string(fmt.Sprintf("%x", bs.mask))
+}
+
+// Parse converts []byte to BitSet.
+func Parse(buf []byte) BitSet {
+	var bs BitSet
+	if len(buf) == 0 {
+		return bs
+	}
+	bs.mask = make([]byte, len(buf)/2)
+	for i := 0; i < len(buf); i += 2 {
+		b := byte((buf[i]-'0')<<4 | (buf[i+1] - '0'))
+		bs.mask[i/2] = b
+	}
+	return bs
+}
+
+// AreSet recieves string representation of BitSet and returns true if
+// every bit with position bitpos is equal 1.
+func AreSet(buf []byte, bitpos ...uint) bool {
+	bs := Parse(buf)
+	return bs.AreSet(bitpos...)
+}
+
 // Value implements database/sql Valuer.
 func (bs BitSet) Value() (driver.Value, error) {
 	if bs.mask == nil {
 		return nil, nil
 	}
 
-	b := make([]byte, bs.cnt)
-	for i := bs.cnt; i >= 0; i-- {
-		b[i-1] = map[bool]byte{true: '1', false: '0'}[bs.IsSet(i-1)]
+	b := make([]byte, len(bs.mask)*8)
+	for i := len(bs.mask) - 1; i >= 0; i-- {
+		for j := 0; j < 8; j++ {
+			b[i] = map[bool]byte{true: '1', false: '0'}[bs.IsSet(uint(i*8+j))]
+		}
 	}
 
 	return b, nil
@@ -102,7 +139,7 @@ func (bs BitSet) Value() (driver.Value, error) {
 
 // Valid returns true if at least one bit is set.
 func (bs *BitSet) Valid() bool {
-	return bs.cnt > 0
+	return len(bs.mask) > 0
 }
 
 // Scan implements database/sql Scanner. It's expected that
