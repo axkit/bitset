@@ -226,18 +226,21 @@ func TestParse(t *testing.T) {
 			a.Set(tc[i].bitpos[j])
 		}
 		s := a.String()
-		b := Parse([]byte(s))
+		b, err := Parse([]byte(s))
+		if err != nil {
+			t.Errorf("test case %d. Failed check #1. Parsing %s failed", i, s)
+		}
 		if s != b.String() {
-			t.Errorf("test case %d. Failed check #1.  Expected %s %v, got %s %v", i, s, a, b.String(), b)
+			t.Errorf("test case %d. Failed check #2. Expected %s %v, got %s %v", i, s, a, b.String(), b)
 		}
 
-		if !AreSet([]byte(s), tc[i].bitpos...) {
-			t.Errorf("test case %d. Failed check #2.", i)
+		if set, err := AreSet([]byte(s), tc[i].bitpos...); err != nil || !set {
+			t.Errorf("test case %d. Failed check #3.", i)
 		}
 	}
 
-	bs := Parse([]byte{})
-	if bs.Len() > 0 {
+	bs, err := Parse([]byte{})
+	if bs.Len() > 0 || err != nil {
 		t.Error("parsing empty string failed")
 	}
 
@@ -269,6 +272,30 @@ func TestNew(t *testing.T) {
 	for i := range tc {
 		a := New(tc[i].size)
 		if len(a.mask) != tc[i].elen {
+			t.Errorf("test case %d. Failed check #1", i)
+		}
+	}
+}
+
+func Test_AreSet(t *testing.T) {
+	var tc = []struct {
+		src    []byte
+		bitpos uint
+		exp    bool
+	}{
+		{
+			src:    []byte(`e65fff7f2feec3efbc7dffbfdcf3f7ff3f9ffdffff7f75bd01`),
+			bitpos: 7,
+			exp:    true,
+		},
+	}
+
+	for i := range tc {
+		res, err := AreSet(tc[i].src, tc[i].bitpos)
+		if err != nil {
+			t.Errorf("test case %d. Failed check #1. Parsing failed %s", i, string(tc[i].src))
+		}
+		if res != tc[i].exp {
 			t.Errorf("test case %d. Failed check #1", i)
 		}
 	}

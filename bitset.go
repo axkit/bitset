@@ -2,8 +2,13 @@ package bitset
 
 import (
 	"database/sql/driver"
+	"errors"
 	"fmt"
 )
+
+// ErrParseFailed returns if Parse function found character out of ranges
+// 0..9, a..f, A..F
+var ErrParseFailed = errors.New("invalid character found")
 
 // BitSet holds set of bits using slice of bytes.
 type BitSet struct {
@@ -17,6 +22,14 @@ func New(size uint) BitSet {
 		i++
 	}
 	return BitSet{mask: make([]byte, i)}
+}
+
+// Clone clones bs.
+func Clone(bs BitSet) BitSet {
+	res := BitSet{}
+	res.mask = make([]byte, len(bs.mask))
+	copy(res.mask, bs.mask)
+	return res
 }
 
 // Set sets bits to 1. Extends internal storage if it's required.
@@ -101,24 +114,54 @@ func (bs *BitSet) String() string {
 }
 
 // Parse converts []byte to BitSet.
-func Parse(buf []byte) BitSet {
+func Parse(buf []byte) (BitSet, error) {
 	var bs BitSet
 	if len(buf) == 0 {
-		return bs
+		return bs, nil
 	}
+
 	bs.mask = make([]byte, len(buf)/2)
+
+	sub := func(b byte) byte {
+
+		switch {
+		case b >= 'A' && b <= 'F':
+			return 'A'
+		case b >= 'a' && b <= 'f':
+			return 'f'
+		case b >= '0' && b <= '9':
+			return '0'
+		}
+		return 'Z'
+	}
+
 	for i := 0; i < len(buf); i += 2 {
-		b := byte((buf[i]-'0')<<4 | (buf[i+1] - '0'))
+		beg := sub(buf[i])
+		if beg == 'Z' {
+			return bs, ErrParseFailed
+		}
+		b := byte((buf[i] - beg) << 4)
+
+		beg = sub(buf[i+1])
+		if beg == 'Z' {
+			return bs, ErrParseFailed
+		}
+
+		b |= (buf[i+1] - beg)
+
 		bs.mask[i/2] = b
 	}
-	return bs
+	return bs, nil
 }
 
 // AreSet recieves string representation of BitSet and returns true if
 // every bit with position bitpos is equal 1.
-func AreSet(buf []byte, bitpos ...uint) bool {
-	bs := Parse(buf)
-	return bs.AreSet(bitpos...)
+func AreSet(buf []byte, bitpos ...uint) (bool, error) {
+	bs, err := Parse(buf)
+	if err != nil {
+		return false, err
+	}
+	return bs.AreSet(bitpos...), nil
 }
 
 // Value implements database/sql Valuer.
