@@ -37,8 +37,8 @@ Check allowed permission in auth middleware
 
 ```
     ...
-    tokenPerms := accessToken.Payload.Perms     // "0605
-    bs := bitset.Parse(tokenPerms)              // returns 0000_0110 0000_0101
+    tokenPerms := accessToken.Payload.Perms     // "0605"
+    bs, err := bitset.Parse(tokenPerms)         // returns 0000_0110 0000_0101
     if bs.AreSet(2,8) {
         // the permission allowed
     }
