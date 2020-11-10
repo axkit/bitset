@@ -110,7 +110,17 @@ func (bs *BitSet) String() string {
 	if len(bs.mask) == 0 {
 		return ""
 	}
-	return string(fmt.Sprintf("%x", bs.mask))
+	arr := [16]byte{
+		'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
+	}
+	res := make([]byte, len(bs.mask)*2)
+	for i := range bs.mask {
+		left := (bs.mask[i] >> 4)
+		right := (bs.mask[i] &^ 0b11110000)
+		res[i*2] = arr[left]
+		res[i*2+1] = arr[right]
+	}
+	return string(res) //  string(fmt.Sprintf("%x", bs.mask))
 }
 
 // Parse converts []byte to BitSet.
@@ -122,32 +132,33 @@ func Parse(buf []byte) (BitSet, error) {
 
 	bs.mask = make([]byte, len(buf)/2)
 
-	sub := func(b byte) byte {
-
+	calc := func(c byte) byte {
 		switch {
-		case b >= 'A' && b <= 'F':
-			return 'A'
-		case b >= 'a' && b <= 'f':
-			return 'f'
-		case b >= '0' && b <= '9':
-			return '0'
+		case '0' <= c && c <= '9':
+			return c - '0'
+		case 'a' <= c && c <= 'f':
+			return c - 'a' + 10
+		case c >= 'A' && c <= 'F':
+			return c - 'A' + 10
 		}
 		return 'Z'
 	}
 
 	for i := 0; i < len(buf); i += 2 {
-		beg := sub(buf[i])
-		if beg == 'Z' {
+
+		x := calc(buf[i])
+		if x == 'Z' {
+			return bs, ErrParseFailed
+
+		}
+		b := byte(x * 16)
+
+		x = calc(buf[i+1])
+		if x == 'Z' {
 			return bs, ErrParseFailed
 		}
-		b := byte((buf[i] - beg) << 4)
 
-		beg = sub(buf[i+1])
-		if beg == 'Z' {
-			return bs, ErrParseFailed
-		}
-
-		b |= (buf[i+1] - beg)
+		b |= (x)
 
 		bs.mask[i/2] = b
 	}

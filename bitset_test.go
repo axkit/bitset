@@ -277,6 +277,8 @@ func TestNew(t *testing.T) {
 	}
 }
 
+// e65fff7f2feec3efbc7dffbfdcf3f7ff3f9ffdffff7f75bd01
+
 func Test_AreSet(t *testing.T) {
 	var tc = []struct {
 		src    []byte
@@ -284,7 +286,7 @@ func Test_AreSet(t *testing.T) {
 		exp    bool
 	}{
 		{
-			src:    []byte(`e65fff7f2feec3efbc7dffbfdcf3f7ff3f9ffdffff7f75bd01`),
+			src:    []byte(`e65f`),
 			bitpos: 7,
 			exp:    true,
 		},
