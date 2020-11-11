@@ -16,12 +16,12 @@ type BitSet struct {
 }
 
 // New creates BitSet with allocated space for size amount of bits.
-func New(size uint) BitSet {
+func New(size uint) *BitSet {
 	i := size / 8
 	if size%8 > 0 {
 		i++
 	}
-	return BitSet{mask: make([]byte, i)}
+	return &BitSet{mask: make([]byte, i)}
 }
 
 // Clone clones bs.
@@ -33,10 +33,11 @@ func Clone(bs BitSet) BitSet {
 }
 
 // Set sets bits to 1. Extends internal storage if it's required.
-func (bs *BitSet) Set(bitpos ...uint) {
+func (bs *BitSet) Set(bitpos ...uint) *BitSet {
 	for _, u := range bitpos {
 		bs.set(u, true)
 	}
+	return bs
 }
 
 // Reset sets bit with position bitpos to 0. Does not resize internal storage.
