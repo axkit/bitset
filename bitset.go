@@ -63,17 +63,18 @@ func (bs *BitSet) set(bitpos uint, isSet bool) {
 	} else {
 		bs.mask[idx] ^= (1 << pos)
 	}
-
 }
 
 // IsSet returns true if bit with position bitpos is 1.
 // Returns false if bitpos above maximal setted bitpos.
 func (bs *BitSet) IsSet(bitpos uint) bool {
-	if bitpos > bs.Len() {
+	if bitpos >= bs.Len() {
 		return false
 	}
+
 	idx := bitpos / 8
 	pos := bitpos % 8
+
 	return bs.mask[idx]&(1<<pos) == 1<<pos
 }
 

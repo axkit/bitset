@@ -290,6 +290,11 @@ func Test_AreSet(t *testing.T) {
 			bitpos: 7,
 			exp:    true,
 		},
+		{
+			src:    []byte(`07`),
+			bitpos: 8,
+			exp:    false,
+		},
 	}
 
 	for i := range tc {
