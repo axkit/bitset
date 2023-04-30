@@ -26,8 +26,7 @@ func New(size uint) *BitSet {
 
 // Clone clones bs.
 func Clone(bs BitSet) BitSet {
-	res := BitSet{}
-	res.mask = make([]byte, len(bs.mask))
+	res := BitSet{mask: make([]byte, len(bs.mask))}
 	copy(res.mask, bs.mask)
 	return res
 }
@@ -66,7 +65,7 @@ func (bs *BitSet) set(bitpos uint, isSet bool) {
 }
 
 // IsSet returns true if bit with position bitpos is 1.
-// Returns false if bitpos above maximal setted bitpos.
+// Returns false if bitpos above maximal available bitpos.
 func (bs *BitSet) IsSet(bitpos uint) bool {
 	if bitpos >= bs.Len() {
 		return false
@@ -107,7 +106,12 @@ func (bs *BitSet) AreSet(bitpos ...uint) bool {
 	return true
 }
 
-// String returns hex representation of bit array. Every 8 bits as 2 hex digits.
+// Bytes returns bitset as byte slice.
+func (bs *BitSet) Bytes() []byte {
+	return bs.mask
+}
+
+// String returns hex representation of bit array. Every 8 bits presented as 2 hex digits.
 func (bs *BitSet) String() string {
 	if len(bs.mask) == 0 {
 		return ""
@@ -151,8 +155,8 @@ func Parse(buf []byte) (BitSet, error) {
 		x := calc(buf[i])
 		if x == 'Z' {
 			return bs, ErrParseFailed
-
 		}
+
 		b := byte(x * 16)
 
 		x = calc(buf[i+1])
@@ -199,7 +203,7 @@ func (bs *BitSet) Valid() bool {
 }
 
 // Scan implements database/sql Scanner. It's expected that
-// PostgresSQL type BIT VARYING is used.
+// PostgreSQL type BIT VARYING is used.
 func (bs *BitSet) Scan(value interface{}) error {
 	if value == nil {
 		(*bs).mask = nil
@@ -219,6 +223,5 @@ func (bs *BitSet) Scan(value interface{}) error {
 	for i := len(b); i >= 0; i-- {
 		bs.Set(uint(i))
 	}
-
 	return nil
 }

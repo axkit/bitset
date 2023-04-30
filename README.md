@@ -4,22 +4,23 @@ A simple bit set with JSON support
 
 # Motivation
 
-The package built specially for usage in JWT tokens in package [github.com/axkit/aaa](https://github.com/axkit/aaa)
+The package built specially to be used in package [github.com/axkit/aaa](https://github.com/axkit/aaa) as a JWT permissions holder but can be
+used independently.
 
 ## Concepts
 
 - Application functionality can be limited by using permissions.
 - Permission (access right) represented by unique string code.
-- Application can have many permissions.
+- Application supports many permissions.
 - A user has a role.
 - A role is set of allowed permission, it's subset of all permissions supported by application.
-- As a result of succesfull sign in backend provides access and resresh tokens.
-- Payload of access token shall have list of allowed permissions.
+- As a result of successful sign in, a backend provides access and refresh tokens.
+- The payload of access token have list of allowed permissions.
 - A single permission code looks like "Customers.Create", "Customer.AttachDocuments", "Customer.Edit", etc.
 - Store allowed permission codes could increase token size.
 - Bitset comes here.
-- Every permission shall be accociated with a single bit in the set.
-- Bitset adds to the token as hexadecimal string.
+- Every permission shall be associated with a single bit in the set.
+- Bitset adds to the token as hexadecimal string. Every 8 permissions represented by 2 characters.
 
 ## Usage Examples
 
