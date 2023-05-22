@@ -31,7 +31,7 @@ Sign In
     perms.Set(1)                    // 0000_0010
     perms.Set(2)                    // 0000_0110
     perms.Set(8, 10)                // 0000_0110 0000_0101
-    tokenPerms := perms.String()    // returns "0605" as hex repsesentation of 0000_0110 0000_0101
+    tokenPerms := perms.String()    // returns "0605" as hex representation of 0000_0110 0000_0101
 ```
 
 Check allowed permission in auth middleware

@@ -106,6 +106,24 @@ func (bs *BitSet) AreSet(bitpos ...uint) bool {
 	return true
 }
 
+// AnySet returns true if at least one bit with position bitpos is equal 1.
+func (bs *BitSet) AnySet(bitpos ...uint) bool {
+	if len(bitpos) == 0 {
+		return false
+	}
+
+	if len(bs.mask) == 0 {
+		return false
+	}
+
+	for _, pos := range bitpos {
+		if bs.IsSet(pos) {
+			return true
+		}
+	}
+	return false
+}
+
 // Bytes returns bitset as byte slice.
 func (bs *BitSet) Bytes() []byte {
 	return bs.mask
