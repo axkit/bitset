@@ -1,4 +1,9 @@
-# BitSet Go Package
+# bitset package
+
+[![Build Status](https://github.com/axkit/bitset/actions/workflows/go.yml/badge.svg)](https://github.com/axkit/bitset/actions)
+[![Go Report Card](https://goreportcard.com/badge/github.com/axkit/bitset)](https://goreportcard.com/report/github.com/axkit/bitset)
+[![GoDoc](https://pkg.go.dev/badge/github.com/axkit/bitset)](https://pkg.go.dev/github.com/axkit/bitset)
+[![Coverage Status](https://coveralls.io/repos/github/axkit/bitset/badge.svg?branch=main)](https://coveralls.io/github/axkit/bitset?branch=main)
 
 The `bitset` package provides a simple and efficient implementation of a bitmap data structure in Go, allowing you to store and manipulate individual bits. It is ideal for use cases where you need to work with large sets of bits and perform operations such as checking, setting, and clearing bits.
 
