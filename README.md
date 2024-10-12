@@ -1,54 +1,110 @@
-# bitset [![GoDoc](https://godoc.org/github.com/axkit/bitset?status.svg)](https://godoc.org/github.com/axkit/bitset) [![Build Status](https://travis-ci.org/axkit/bitset.svg?branch=master)](https://travis-ci.org/axkit/bitset) [![Coverage Status](https://coveralls.io/repos/github/bitset/gonfig/badge.svg)](https://coveralls.io/github/axkit/bitset) [![Go Report Card](https://goreportcard.com/badge/github.com/axkit/bitset)](https://goreportcard.com/report/github.com/axkit/bitset)
+# BitSet Go Package
 
-A simple bit set with JSON support
+The `bitset` package provides a simple and efficient implementation of a bitmap data structure in Go, allowing you to store and manipulate individual bits. It is ideal for use cases where you need to work with large sets of bits and perform operations such as checking, setting, and clearing bits.
 
-# Motivation
+## Installation
 
-The package built specially to be used in package [github.com/axkit/aaa](https://github.com/axkit/aaa) as a JWT permissions holder but can be
-used independently.
+To install the package, use:
 
-## Concepts
-
-- Application functionality can be limited by using permissions.
-- Permission (access right) represented by unique string code.
-- Application supports many permissions.
-- A user has a role.
-- A role is set of allowed permission, it's subset of all permissions supported by application.
-- As a result of successful sign in, a backend provides access and refresh tokens.
-- The payload of access token have list of allowed permissions.
-- A single permission code looks like "Customers.Create", "Customer.AttachDocuments", "Customer.Edit", etc.
-- Store allowed permission codes could increase token size.
-- Bitset comes here.
-- Every permission shall be associated with a single bit in the set.
-- Bitset adds to the token as hexadecimal string. Every 8 permissions represented by 2 characters.
-
-## Usage Examples
-
-Sign In
-
-```
-    var perms bitset.Bitset
-    perms.Set(1)                    // 0000_0010
-    perms.Set(2)                    // 0000_0110
-    perms.Set(8, 10)                // 0000_0110 0000_0101
-    tokenPerms := perms.String()    // returns "0605" as hex representation of 0000_0110 0000_0101
+```bash
+go get github.com/axkit/bitset
 ```
 
-Check allowed permission in auth middleware
+## Overview
 
+The bitset package provides the BitSet interface and its implementation ByteBitSet, which stores bits as a slice of bytes. Each bit is represented by a single bit within a byte, with the leftmost bit in the first byte representing the first bit, and the least significant bit in the last byte representing the last bit.
+
+## Features
+
+	•	Create BitSet: Initialize a new bitset with a specified size or from a hexadecimal or binary string.
+	•	Set/Unset Bits: Set or unset bits at specified positions.
+	•	Check Bits: Check if specific bits are set, using both All and Any rules.
+	•	Convert to String: Convert the bitset to hexadecimal or binary string formats.
+	•	Clone: Create a deep copy of an existing bitset.
+
+## Examples
+
+### Bit Representation
 ```
-    ...
-    tokenPerms := accessToken.Payload.Perms     // "0605"
-    bs, err := bitset.Parse(tokenPerms)         // returns 0000_0110 0000_0101
-    if bs.AreSet(2,8) {
-        // the permission allowed
-    }
+1000 0010  ->  Hexadecimal: "82" (bits 0 and 6 are set)
+1000 0011  ->  Hexadecimal: "83" (bits 0, 6, and 7 are set)
+1100 0001 1100 0011  ->  Hexadecimal: "c1c3" (bits 0, 1, 7, 8, 9, 14, 15 are set)
 ```
 
-# Further Improvements
+## Usage
 
-- [ ] Finalize integration BitSet with database/sql
-- [ ] Add benchmarks
-- [ ] Reduce memory allocations
+### Creating a New BitSet
 
-Prague 2020
+You can create a new BitSet by specifying the number of bits to allocate:
+
+```go
+import "github.com/yourusername/bitset"
+
+bs := bitset.New(16) // Creates a BitSet with space for 16 bits
+```
+
+Alternatively, you can initialize it from a hexadecimal string:
+```go
+bs, err := bitset.NewFromString("82")
+if err != nil {
+    fmt.Println("Error:", err)
+}
+```
+
+### Setting and Checking Bits
+
+Set specific bits:
+```go
+bs.Set(true, 0, 6) // Sets bits 0 and 6
+```
+
+Check if a bit is set:
+```go
+if bs.IsSet(0) {
+    fmt.Println("Bit 0 is set")
+}
+```
+
+### Checking Multiple Bits
+You can check if all or any bits are set using All or Any rules:
+```go
+if bs.AreSet(bitset.All, 0, 6) {
+    fmt.Println("Bits 0 and 6 are both set")
+}
+
+if bs.AreSet(bitset.Any, 0, 7) {
+    fmt.Println("At least one of the bits 0 or 7 is set")
+}
+```
+
+### Converting to String Representations
+To get the hexadecimal or binary string representation of the bitset:
+
+```go
+hexStr := bs.String()
+fmt.Println("Hexadecimal:", hexStr)
+
+binStr := bs.BinaryString()
+fmt.Println("Binary:", binStr)
+```
+
+### Cloning a BitSet
+
+You can create a deep copy of an existing BitSet:
+```go
+clone := bitset.Clone(bs)
+```
+## Errors
+
+ErrParseFailed
+
+Returned by parsing functions when an invalid character is encountered.
+
+ErrInvalidSourceString
+
+Indicates an invalid source string, such as an odd-length string in hexadecimal input.
+
+## License
+
+This package is open-source and distributed under the MIT License. Contributions and feedback are welcome!
+

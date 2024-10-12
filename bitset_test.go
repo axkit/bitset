@@ -1,309 +1,249 @@
-package bitset
+package bitset_test
 
 import (
 	"testing"
+
+	"github.com/axkit/bitset"
 )
 
-func TestBitSet_SetSingle(t *testing.T) {
-
-	var tc = []struct {
-		bitpos     uint // target bit pos
-		eslicelen  uint // expected slice len
-		ecnt       uint // expected max cnt
-		byteIndex  int  // slice index where bitpos belogs to
-		eByteValue byte // int8 value of slice item
-	}{
-		{
-			bitpos:     0,
-			eslicelen:  1,
-			ecnt:       1,
-			byteIndex:  0,
-			eByteValue: 1,
-		},
-		{
-			bitpos:     1,
-			eslicelen:  1,
-			ecnt:       2,
-			byteIndex:  0,
-			eByteValue: 2,
-		},
-		{
-			bitpos:     9,
-			eslicelen:  2,
-			ecnt:       10,
-			byteIndex:  1,
-			eByteValue: 2,
-		},
-	}
-
-	for i := range tc {
-		a := BitSet{}
-		a.Set(tc[i].bitpos)
-		if !a.IsSet(tc[i].bitpos) {
-			t.Errorf("test case %d. Failed check #1", i)
-		}
-		if a.IsSet(tc[i].bitpos + 100) {
-			t.Errorf("test case %d. Failed check #1", i)
-		}
-
-		if uint(len(a.mask)) != tc[i].eslicelen {
-			t.Errorf("test case %d. Failed check #2", i)
-		}
-
-		if a.mask[tc[i].byteIndex] != tc[i].eByteValue {
-			t.Errorf("test case %d. Failed check #3", i)
-		}
-
-		a.Reset(tc[i].bitpos)
-		if a.IsSet(tc[i].bitpos) {
-			t.Errorf("test case %d. Failed check #4", i)
-		}
-	}
-}
-
-func TestBitSet_SetMuilti(t *testing.T) {
-
-	var tc = []struct {
-		bitpos     uint // target bit pos
-		eslicelen  uint // expected slice len
-		byteIndex  int  // slice index where bitpos should belong to
-		eByteValue byte // expected byte value
-		allocated  bool
-	}{
-		{
-			bitpos:     0,
-			eslicelen:  1,
-			byteIndex:  0,
-			eByteValue: 1,
-			allocated:  false,
-		},
-		{
-			bitpos:     1,
-			eslicelen:  1,
-			byteIndex:  0,
-			eByteValue: 3,
-			allocated:  true,
-		},
-		{
-			bitpos:     9,
-			eslicelen:  2,
-			byteIndex:  1,
-			eByteValue: 2,
-			allocated:  false,
-		},
-	}
-
-	a := BitSet{}
-
-	for i := range tc {
-		if a.IsAllocated(tc[i].bitpos) != tc[i].allocated {
-			t.Errorf("test case %d. Failed check #1", i)
-		}
-
-		a.Set(tc[i].bitpos)
-		if !a.IsSet(tc[i].bitpos) {
-			t.Errorf("test case %d. Failed check #2", i)
-		}
-		if uint(len(a.mask)) != tc[i].eslicelen {
-			t.Errorf("test case %d. Failed check #3", i)
-		}
-
-		if a.mask[tc[i].byteIndex] != tc[i].eByteValue {
-			t.Errorf("test case %d. Failed check #4", i)
-		}
-
-	}
-
-}
-
-func TestBitSet_AreSet(t *testing.T) {
-
-	var tc = []struct {
-		a       []uint // primary bit set
-		b       []uint // slice to be compared with a
-		eresult bool   // expected result
-	}{
-		{
-			a:       []uint{0, 1, 2, 3, 4, 20},
-			b:       []uint{0, 1, 4},
-			eresult: true,
-		},
-		{
-			a:       []uint{0, 1, 2, 3, 4, 20},
-			b:       []uint{20},
-			eresult: true,
-		},
-		{
-			a:       []uint{0, 1, 2, 3, 4, 20},
-			b:       []uint{0},
-			eresult: true,
-		},
-		{
-			a:       []uint{0, 1, 20, 40, 10},
-			b:       []uint{},
-			eresult: false,
-		},
-		{
-			a:       []uint{},
-			b:       []uint{0, 1, 4},
-			eresult: false,
-		},
-		{
-			a:       []uint{4, 5, 6, 21},
-			b:       []uint{1, 5, 4},
-			eresult: false,
-		},
-	}
-
-	for i := range tc {
-
-		a := BitSet{}
-		for j := range tc[i].a {
-			a.Set(tc[i].a[j])
-		}
-
-		if res := a.AreSet(tc[i].b...); res != tc[i].eresult {
-			t.Errorf("test case %d. Failed check #1", i)
-
-		}
-	}
-}
-func TestBitSet_String(t *testing.T) {
-
-	var tc = []struct {
-		bitpos []uint // bit set
-		exp    string // expected result
-	}{
-		{
-			bitpos: []uint{0, 1, 2, 8},
-			exp:    "0701",
-		},
-		{
-			bitpos: []uint{},
-			exp:    "",
-		},
-		{
-			bitpos: []uint{0, 8, 16, 24},
-			exp:    "01010101",
-		},
-		{
-			bitpos: []uint{0, 1, 2, 3, 4, 5, 6, 7},
-			exp:    "ff",
-		},
-	}
-
-	for i := range tc {
-
-		a := BitSet{}
-		for j := range tc[i].bitpos {
-			a.Set(tc[i].bitpos[j])
-		}
-		if s := a.String(); s != tc[i].exp {
-			t.Errorf("test case %d. Failed check #1. Expected %s, got %s", i, tc[i].exp, s)
-		}
-
-	}
-}
-func TestParse(t *testing.T) {
-
-	var tc = []struct {
-		bitpos []uint
-	}{
-		{
-			bitpos: []uint{1, 2, 8, 17},
-		},
-		{
-			bitpos: []uint{81},
-		},
-		{
-			bitpos: []uint{100},
-		},
-	}
-
-	for i := range tc {
-		a := BitSet{}
-		for j := range tc[i].bitpos {
-			a.Set(tc[i].bitpos[j])
-		}
-		s := a.String()
-		b, err := Parse([]byte(s))
-		if err != nil {
-			t.Errorf("test case %d. Failed check #1. Parsing %s failed", i, s)
-		}
-		if s != b.String() {
-			t.Errorf("test case %d. Failed check #2. Expected %s %v, got %s %v", i, s, a, b.String(), b)
-		}
-
-		if set, err := AreSet([]byte(s), tc[i].bitpos...); err != nil || !set {
-			t.Errorf("test case %d. Failed check #3.", i)
-		}
-	}
-
-	bs, err := Parse([]byte{})
-	if bs.Len() > 0 || err != nil {
-		t.Error("parsing empty string failed")
-	}
-
-}
-
 func TestNew(t *testing.T) {
-	var tc = []struct {
-		size uint
-		elen int // expected slice len in bytes
+	tests := []struct {
+		name string
+		size int
+		want int
 	}{
-		{
-			size: 1,
-			elen: 1,
-		},
-		{
-			size: 8,
-			elen: 1,
-		},
-		{
-			size: 15,
-			elen: 2,
-		},
-		{
-			size: 65,
-			elen: 9,
-		},
+		{"Zero bits", 0, 0},
+		{"One byte", 8, 1},
+		{"Partial byte", 7, 1},
+		{"Two bytes", 16, 2},
+		{"More than a byte", 13, 2},
 	}
 
-	for i := range tc {
-		a := New(tc[i].size)
-		if len(a.mask) != tc[i].elen {
-			t.Errorf("test case %d. Failed check #1", i)
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bs := bitset.New(tt.size)
+			if got := len(bs.Bytes()); got != tt.want {
+				t.Errorf("New(%d) length = %d, want %d", tt.size, got, tt.want)
+			}
+		})
 	}
 }
 
-// e65fff7f2feec3efbc7dffbfdcf3f7ff3f9ffdffff7f75bd01
-
-func Test_AreSet(t *testing.T) {
-	var tc = []struct {
-		src    []byte
-		bitpos uint
-		exp    bool
+func TestNewFromString(t *testing.T) {
+	tests := []struct {
+		name    string
+		src     string
+		wantErr bool
 	}{
-		{
-			src:    []byte(`e65f`),
-			bitpos: 7,
-			exp:    true,
-		},
-		{
-			src:    []byte(`07`),
-			bitpos: 8,
-			exp:    false,
-		},
+		{"Empty string", "", false},
+		{"Valid hex string", "f3", false},
+		{"Invalid hex string", "fz", true},
+		{"Uneven hex string", "abc", true},
 	}
 
-	for i := range tc {
-		res, err := AreSet(tc[i].src, tc[i].bitpos)
-		if err != nil {
-			t.Errorf("test case %d. Failed check #1. Parsing failed %s", i, string(tc[i].src))
-		}
-		if res != tc[i].exp {
-			t.Errorf("test case %d. Failed check #1", i)
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := bitset.NewFromString(tt.src)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NewFromString(%q) error = %v, wantErr %v", tt.src, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestSetAndIsSet(t *testing.T) {
+	tests := []struct {
+		name      string
+		size      int
+		setBits   []uint
+		checkBits []uint
+		expected  []bool
+	}{
+		{"Set bits in one byte", 8, []uint{0, 2, 7}, []uint{0, 2, 4, 7}, []bool{true, true, false, true}},
+		{"Set bits across multiple bytes", 16, []uint{0, 9}, []uint{0, 9, 10}, []bool{true, true, false}},
+		{"Set and unset bits", 16, []uint{2, 15}, []uint{2, 15}, []bool{true, true}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bs := bitset.New(tt.size)
+			for _, bit := range tt.setBits {
+				bs.Set(true, bit)
+			}
+			for i, bit := range tt.checkBits {
+				if got := bs.IsSet(bit); got != tt.expected[i] {
+					t.Errorf("IsSet(%d) = %v, want %v", bit, got, tt.expected[i])
+				}
+			}
+		})
+	}
+}
+
+func TestAreSet(t *testing.T) {
+	tests := []struct {
+		name    string
+		rule    bitset.CompareRule
+		setBits []uint
+		check   []uint
+		want    bool
+	}{
+		{"All set", bitset.All, []uint{0, 2, 4}, []uint{0, 2, 4}, true},
+		{"All not set", bitset.All, []uint{0, 2}, []uint{0, 1, 2}, false},
+		{"Any set", bitset.Any, []uint{1, 3, 7}, []uint{0, 1, 4}, true},
+		{"None set", bitset.Any, []uint{3, 6}, []uint{0, 2, 5}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bs := bitset.New(8)
+			for _, bit := range tt.setBits {
+				bs.Set(true, bit)
+			}
+			got, _ := bitset.AreSet(bs.Bytes(), tt.rule, tt.check...)
+			if got != tt.want {
+				t.Errorf("AreSet(%v, %v) = %v, want %v", tt.rule, tt.check, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestByteBitSet_StringAndBinaryString(t *testing.T) {
+	tests := []struct {
+		name       string
+		size       int
+		setBits    []uint
+		wantHex    string
+		wantBinary string
+	}{
+
+		{"Single byte:2 bits", 8, []uint{0, 6}, "82", "10000010"},
+		{"Single byte:3 bits", 8, []uint{0, 6, 7}, "83", "10000011"},
+		{"Single byte:4 bits", 8, []uint{0, 6, 7, 1}, "c3", "11000011"},
+		{"Two byte:6 bits", 8, []uint{0, 1, 7, 8, 9, 14, 15}, "c1c3", "1100000111000011"},
+		{"Empty", 0, nil, "", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bs := bitset.New(tt.size)
+			bs.Set(true, tt.setBits...)
+			if got := bs.String(); got != tt.wantHex {
+				t.Errorf("String() = %v, want %v", got, tt.wantHex)
+			}
+			if got := bs.BinaryString(); got != tt.wantBinary {
+				t.Errorf("BinaryString() = %v, want %v", got, tt.wantBinary)
+			}
+		})
+	}
+}
+
+func TestByteBitSet_Set(t *testing.T) {
+	tests := []struct {
+		name    string
+		size    int
+		setBits []uint
+		wantHex string
+	}{
+		{"Single byte: empty", 0, []uint{0, 6}, "82"},
+		{"Single byte:2 bits", 8, []uint{0, 6}, "82"},
+		{"Single byte:3 bits", 8, []uint{0, 6, 7}, "83"},
+		{"Single byte:4 bits", 8, []uint{0, 6, 7, 1}, "c3"},
+		{"Two byte:6 bits", 8, []uint{0, 1, 7, 8, 9, 14, 15}, "c1c3"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bs := bitset.New(tt.size).Set(true, tt.setBits...)
+			if got := bs.String(); got != tt.wantHex {
+				t.Errorf("String() = %v, want %v", got, tt.wantHex)
+			}
+		})
+	}
+}
+
+func TestByteBitSet_Clone(t *testing.T) {
+	bs := bitset.New(8).Set(true, 0, 1, 2)
+	clone := bitset.Clone(bs)
+	if &bs == &clone {
+		t.Errorf("Clone() should return a new instance of BitSet")
+	}
+	if bs.String() != clone.String() {
+		t.Errorf("Clone() should return a copy of the BitSet")
+	}
+}
+
+func TestByteBitSet_AreSet(t *testing.T) {
+	tests := []struct {
+		name    string
+		rule    bitset.CompareRule
+		setBits []uint
+		check   []uint
+		want    bool
+	}{
+		{"All set", bitset.All, []uint{0, 2, 4}, []uint{0, 2, 4}, true},
+		{"All not set", bitset.All, []uint{0, 2}, []uint{0, 1, 2}, false},
+		{"Any set", bitset.Any, []uint{1, 3, 7}, []uint{0, 1, 4}, true},
+		{"None set", bitset.Any, []uint{3, 6}, []uint{0, 2, 5}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bs := bitset.New(8)
+			for _, bit := range tt.setBits {
+				bs.Set(true, bit)
+			}
+			got := bs.AreSet(tt.rule, tt.check...)
+			if got != tt.want {
+				t.Errorf("AreSet(%v, %v) = %v, want %v", tt.rule, tt.check, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestByteBitSet_NewFromBinaryString(t *testing.T) {
+	tests := []struct {
+		name    string
+		src     string
+		wantErr bool
+	}{
+		{"Empty string", "", false},
+		{"Valid binary string", "10000010", false},
+		{"Invalid binary string", "1000001z", true},
+		{"Uneven binary string", "1000001", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bs, err := bitset.NewFromBinaryString(tt.src)
+			if err == nil && len(tt.src) > 0 {
+				if !bs.IsSet(0) {
+					t.Errorf("NewFromBinaryString(%q) = %v, want %v", tt.src, bs.String(), tt.src)
+				}
+			}
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NewFromBinaryString(%q) error = %v, wantErr %v", tt.src, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		src     string
+		wantErr bool
+	}{
+		{"Empty string", "", false},
+		{"Valid hex string", "f3", false},
+		{"Invalid hex string", "fz", true},
+		{"Uneven hex string", "abc", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := bitset.Validate([]byte(tt.src)); (err != nil) != tt.wantErr {
+				t.Errorf("Validate(%q) error = %v, wantErr %v", tt.src, err, tt.wantErr)
+			}
+		})
 	}
 }
