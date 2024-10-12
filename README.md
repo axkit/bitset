@@ -21,11 +21,12 @@ The bitset package provides the BitSet interface and its implementation ByteBitS
 
 ## Features
 
-	•	Create BitSet: Initialize a new bitset with a specified size or from a hexadecimal or binary string.
-	•	Set/Unset Bits: Set or unset bits at specified positions.
-	•	Check Bits: Check if specific bits are set, using both All and Any rules.
-	•	Convert to String: Convert the bitset to hexadecimal or binary string formats.
-	•	Clone: Create a deep copy of an existing bitset.
+- Create BitSet: Initialize a new bitset with a specified size or from a hexadecimal or binary string.
+- Set/Unset Bits: Set or unset bits at specified positions.
+- Check Bits: Check if specific bits are set, using both All and Any rules.
+- Check Bits: Check if specific bits are set, using both All and Any rules.
+- Convert to String: Convert the bitset to hexadecimal or binary string formats.
+- Clone: Create a deep copy of an existing bitset.
 
 ## Examples
 
@@ -43,7 +44,7 @@ The bitset package provides the BitSet interface and its implementation ByteBitS
 You can create a new BitSet by specifying the number of bits to allocate:
 
 ```go
-import "github.com/yourusername/bitset"
+import "github.com/axkit/bitset"
 
 bs := bitset.New(16) // Creates a BitSet with space for 16 bits
 ```
@@ -101,11 +102,11 @@ clone := bitset.Clone(bs)
 ```
 ## Errors
 
-ErrParseFailed
+`ErrParseFailed`
 
 Returned by parsing functions when an invalid character is encountered.
 
-ErrInvalidSourceString
+`ErrInvalidSourceString`
 
 Indicates an invalid source string, such as an odd-length string in hexadecimal input.
 
