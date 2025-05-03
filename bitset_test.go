@@ -247,3 +247,31 @@ func TestValidate(t *testing.T) {
 		})
 	}
 }
+
+func TestAreSet_InString(t *testing.T) {
+	tests := []struct {
+		name  string
+		rule  bitset.CompareRule
+		buf   []byte
+		check []uint
+		want  bool
+	}{
+		{"All set", bitset.All, []byte{0b00000011}, []uint{0, 1}, true},
+		{"All not set", bitset.All, []byte{0b00000011}, []uint{0, 1, 2}, false},
+		{"Any set", bitset.Any, []byte{0b00000011}, []uint{0, 1, 2}, true},
+		{"None set", bitset.Any, []byte{0b00000011}, []uint{2, 3}, false},
+		{"Custom", bitset.All, []byte("3e40"), []uint{4}, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := bitset.AreSet(tt.buf, tt.rule, tt.check...)
+			if err != nil {
+				t.Errorf("AreSet(%v, %v) error = %v", tt.rule, tt.check, err)
+			}
+			if got != tt.want {
+				t.Errorf("AreSet(%v, %v) = %v, want %v", tt.rule, tt.check, got, tt.want)
+			}
+		})
+	}
+}

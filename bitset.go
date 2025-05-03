@@ -301,11 +301,13 @@ func AreSet(buf []byte, rule CompareRule, bitpos ...uint) (bool, error) {
 	for _, pos := range bitpos {
 		bytePos := pos / 8
 		inBytePos := 7 - pos%8
-		// if inBytePos != 0 && pos >= 8 {
-		// 	bytePos++
-		// }
 
-		val := buf[bytePos] >> byte(inBytePos) & 1
+		byt, err := hexPairToByte(buf[bytePos*2], buf[bytePos*2+1])
+		if err != nil {
+			return false, err
+		}
+
+		val := (byt >> inBytePos) & 1
 		if rule == All && val == 0 {
 			return false, nil
 		}
@@ -319,7 +321,7 @@ func AreSet(buf []byte, rule CompareRule, bitpos ...uint) (bool, error) {
 		return true, nil
 	}
 
-	// if rule == Any
+	// we come here if rule equals to Any
 
 	return false, nil
 }
@@ -327,4 +329,24 @@ func AreSet(buf []byte, rule CompareRule, bitpos ...uint) (bool, error) {
 // Empty returns true if BitSet is not initialized.
 func (bs *ByteBitSet) Empty() bool {
 	return len(bs.mask) == 0
+}
+
+func hexPairToByte(left, right byte) (byte, error) {
+	if left >= '0' && left <= '9' {
+		left -= '0'
+	} else if left >= 'a' && left <= 'f' {
+		left -= 'a' - 10
+	} else {
+		return 0, fmt.Errorf("invalid hex byte: %c", left)
+	}
+
+	if right >= '0' && right <= '9' {
+		right -= '0'
+	} else if right >= 'a' && right <= 'f' {
+		right -= 'a' - 10
+	} else {
+		return 0, fmt.Errorf("invalid hex byte: %c", right)
+	}
+
+	return (left << 4) | right, nil
 }
