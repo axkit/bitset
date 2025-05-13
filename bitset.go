@@ -1,17 +1,17 @@
 // The package provides typical bitmap storage and manipulation functions.
-// BitSet is a data structure that holds a set of bits. Each bit is represented by a single bit in the byte slice.
-// The first bit is stored in the left bit of the first byte,
+// BitSet is a data structure that holds a set of bits, where each bit is represented by a single bit in a byte slice.
+// The first bit is stored in the most significant bit of the first byte,
 // and the last bit is stored in the least significant bit of the last byte.
 // Examples:
 //
-// 1000 0010 where bits 0,6 is set in the string representation will look like hex string "82"
-// 1000 0011 where bits 0, 6, 7 is set in the string representation will look like hes string "83"
-// 1100 0001 1100 0011 where bits 0,1,7, 8,9, 14,15 us set in the string representation will look like "c1c3"
+// 1000 0010: Bits 0 and 6 are set. The hexadecimal representation is "82".
+// 1000 0011: Bits 0, 6, and 7 are set. The hexadecimal representation is "83".
+// 1100 0001 1100 0011: Bits 0, 1, 7, 8, 9, 14, and 15 are set. The hexadecimal representation is "c1c3".
 package bitset
 
 import (
 	"errors"
-	"fmt"
+	"unsafe"
 )
 
 // ErrParseFailed is returned by the Parse function when an invalid character is found
@@ -22,12 +22,18 @@ var (
 )
 
 var (
-	invalidSymbol = byte('_')
+	invalidNumber = byte('_')
 	nibbleMapping = [16]byte{
 		'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
 	}
 )
 
+// CompareRule defines the rule for comparing bits in a BitSet.
+// It is used to determine whether all or any of the specified bits are set.
+//
+// The following constants are available:
+//   - All: All specified bits must be set.
+//   - Any: At least one of the specified bits must be set.
 type CompareRule int8
 
 const (
@@ -35,148 +41,168 @@ const (
 	Any
 )
 
+// BitSet defines an interface for manipulating a set of bits.
+// It provides methods to check, set, retrieve, and convert the bit set.
 type BitSet interface {
 	IsSet(pos uint) bool
 	AreSet(rule CompareRule, bitpos ...uint) bool
-	Set(val bool, bitpos ...uint) BitSet
-	Empty() bool
+	Set(val bool, bitpos ...uint)
+	Len() uint
 	String() string
+	BinaryString() string
 	Bytes() []byte
 }
 
-// ByteBitSet holds a set of bits using a slice of bytes.
-// Each bit in the bitset is represented by one bit in the byte slice.
+// ByteBitSet is a BitSet implementation that stores bits in a byte slice.
+// Each bit is represented by a single bit in the byte array, starting from the most significant bit of the first byte.
 type ByteBitSet struct {
 	mask []uint8
 }
 
-// New creates a BitSet with allocated space for the specified number of bits.
-// It takes the bit size as input, calculates how many bytes are needed to store
-// that many bits, and returns a pointer to a new BitSet.
-func New(bitSize int) *ByteBitSet {
-	byteSize := bitSize / 8
-	if bitSize%8 > 0 {
-		byteSize++
+var _ BitSet = (*ByteBitSet)(nil)
+
+// New returns a new ByteBitSet with enough space to store the specified number of bits.
+func New(size int) ByteBitSet {
+	n := size / 8
+	if size%8 > 0 {
+		n++
 	}
-	return &ByteBitSet{mask: make([]uint8, byteSize)}
+	return ByteBitSet{mask: make([]uint8, n)}
 }
 
-func NewFromString(src string) (ByteBitSet, error) {
-	if len(src) != len([]rune(src)) {
+// ParseHexString creates a ByteBitSet from a hexadecimal string representation.
+// Returns an error if the input string is invalid.
+func ParseHexString(hexStr string) (ByteBitSet, error) {
+
+	if len(hexStr) != len([]rune(hexStr)) {
 		return ByteBitSet{}, ErrInvalidSourceString
 	}
-	return newFromBytes([]byte(src))
+	buf := unsafe.Slice(unsafe.StringData(hexStr), len(hexStr))
+	return parseHexBytes(buf)
 }
 
-// NewFromBytes converts a hexadecimal byte slice into a BitSet.
-// It returns an error if any of the input characters are not valid hexadecimal digits.
-func NewFromBytes(buf []byte) (ByteBitSet, error) {
-	return newFromBytes(buf)
+// ParseHexBytes is a sugar function that creates a ByteBitSet from a byte slice.
+func ParseHexBytes(hexStr []byte) (ByteBitSet, error) {
+	return parseHexBytes(hexStr)
 }
 
-func newFromBytes(buf []byte) (ByteBitSet, error) {
-	var bs ByteBitSet
-	if len(buf) == 0 {
-		return bs, nil
+func parseHexBytes(src []byte) (ByteBitSet, error) {
+
+	if len(src) == 0 {
+		return ByteBitSet{}, nil
 	}
 
-	if len(buf)%2 == 1 {
-		return bs, ErrInvalidSourceString
+	if len(src)%2 == 1 {
+		return ByteBitSet{}, ErrInvalidSourceString
 	}
 
-	bs.mask = make([]byte, len(buf)/2)
+	bbs := New(len(src) / 2 * 8)
 
-	for i := 0; i < len(buf); i += 2 {
-
-		bm, err := parsePair([2]byte(buf[i : i+2]))
+	for i := 0; i < len(src); i += 2 {
+		bm, err := parsePair(src[i], src[i+1])
 		if err != nil {
-			return bs, err
+			return ByteBitSet{}, err
 		}
-
-		bs.mask[i/2] = bm
+		bbs.mask[i/2] = bm
 	}
-	return bs, nil
-
+	return bbs, nil
 }
 
-// Clone returns a deep copy of the given BitSet.
-// It creates a new BitSet and copies the mask from the source BitSet.
-func Clone(bs BitSet) BitSet {
-	return &ByteBitSet{mask: append([]byte{}, bs.Bytes()...)}
+// ParseBinaryString creates a BitSet from a binary string of '0' and '1' characters.
+// Returns an error if any characters other than '0' or '1' are found.
+func ParseBinaryString(src string) (ByteBitSet, error) {
+
+	if len(src) == 0 {
+		return ByteBitSet{}, nil
+	}
+
+	bbs := New(len(src))
+
+	for i, c := range []rune(src) {
+		if !(c == '0' || c == '1') {
+			return ByteBitSet{}, ErrParseFailed
+		}
+		bbs.Set(c == '1', uint(i))
+	}
+	return bbs, nil
 }
 
-// Set sets the specified bits to 1. If the bit position is out of range, the internal
-// byte slice is automatically extended to accommodate the bit.
-func (bs *ByteBitSet) Set(val bool, bitpos ...uint) BitSet {
-	for _, u := range bitpos {
-		bs.set(val, u)
+// Clone returns a deep copy of the provided ByteBitSet.
+func Clone(src ByteBitSet) ByteBitSet {
+	dst := ByteBitSet{
+		mask: make([]uint8, len(src.mask)),
 	}
-	return bs
+	copy(dst.mask, src.mask)
+	return dst
+}
+
+// Set updates the bits at the specified positions to the given value (true to set, false to clear).
+// Automatically expands the internal byte slice if necessary.
+func (bbs *ByteBitSet) Set(val bool, bits ...uint) {
+	for _, bit := range bits {
+		bbs.set(val, bit)
+	}
 }
 
 // set is a helper function that sets or resets the bit at the specified position.
 // It extends the internal byte slice if necessary, and modifies the specified bit.
-func (bs *ByteBitSet) set(isSet bool, bitpos uint) {
-	idx := bitpos / 8
-	pos := uint8(bitpos % 8)
-	n := idx
-	l := uint(len(bs.mask))
+func (bbs *ByteBitSet) set(val bool, bit uint) {
+	//bn := bit / 8
+	//bitn := uint8(bit % 8)
+	size := uint(len(bbs.mask))
+	bn, bitn := offsets(bit)
 
 	// Extend internal storage if needed
 	switch {
-	case n == 0 && l == 0:
-		(*bs).mask = []byte{0}
-	case n >= l:
-		(*bs).mask = append((*bs).mask, make([]byte, n-l+1)...)
+	case bn == 0 && size == 0:
+		(*bbs).mask = []byte{0}
+	case bn >= size:
+		(*bbs).mask = append(bbs.mask, make([]byte, bn-size+1)...)
 	}
 
 	// Set or reset the bit at the specified position
-	if isSet {
-		bs.mask[idx] |= 1 << (7 - pos)
+	if val {
+		bbs.mask[bn] |= (1 << bitn)
 	} else {
-		bs.mask[idx] ^= 1 << (7 - pos)
+		bbs.mask[bn] &^= (1 << bitn)
 	}
 }
 
-// IsSet returns true if the bit at the specified position is set (i.e., 1).
-// If the position is beyond the current length of the bitset, it returns false.
-func (bs *ByteBitSet) IsSet(bitpos uint) bool {
-	if bitpos >= bs.Len() {
+// IsSet returns true if the bit at the specified position is set to 1 or false if it is 0.
+//
+// If the position is out of bounds, it returns false. Use Len() to check the size of the BitSet.
+func (bbs ByteBitSet) IsSet(bit uint) bool {
+	if bit >= bbs.Len() {
 		return false
 	}
 
-	idx := bitpos / 8
-	pos := 7 - bitpos%8
-
-	return (uint(bs.mask[idx]))>>pos&1 == 1
+	bn, bitn := offsets(bit)
+	return (uint(bbs.mask[bn]))>>bitn&1 == 1
 }
 
-// IsAllocated returns true if the space for the specified bit is already allocated.
-// It checks whether the internal storage has enough space for the given bit position.
-func (bs *ByteBitSet) IsAllocated(bitpos uint) bool {
-	return len(bs.mask) > 0 && bitpos < bs.Len()
+// Len returns the total number of bits currently allocated in the bit set.
+func (bbs ByteBitSet) Len() uint {
+	return uint(len(bbs.mask) * 8)
 }
 
-// Len returns the length of the allocated bitset in bits.
-// The length is calculated by multiplying the number of bytes in the mask by 8.
-func (bs *ByteBitSet) Len() uint {
-	return uint(len(bs.mask) * 8)
-}
-
-// AreSet checks if all or any of the specified bits are set to 1.
-// If any of the bits is not set, or if the bitset is empty, it returns false.
-func (bs *ByteBitSet) AreSet(rule CompareRule, bitpos ...uint) bool {
-	if len(bitpos) == 0 {
+// AreSet checks whether all or any of the specified bits are set, depending on the rule provided.
+// Use IsSet to check a single bit.
+func (bbs ByteBitSet) AreSet(rule CompareRule, bits ...uint) bool {
+	if len(bits) == 0 {
 		return false
 	}
 
-	if len(bs.mask) == 0 {
+	if len(bbs.mask) == 0 {
 		return false
+	}
+
+	if len(bits) == 1 {
+		return bbs.IsSet(bits[0])
 	}
 
 	if rule == All {
-		for _, pos := range bitpos {
-			if !bs.IsSet(pos) {
+		for _, bit := range bits {
+			if !bbs.IsSet(bit) {
 				return false
 			}
 		}
@@ -184,67 +210,54 @@ func (bs *ByteBitSet) AreSet(rule CompareRule, bitpos ...uint) bool {
 	}
 
 	// if rule == Any
-	for _, pos := range bitpos {
-		if bs.IsSet(pos) {
+	for _, bit := range bits {
+		if bbs.IsSet(bit) {
 			return true
 		}
 	}
 	return false
 }
 
-// Bytes returns the internal representation of the bitset as a byte slice.
-func (bs *ByteBitSet) Bytes() []byte {
-	return bs.mask
+// Bytes returns the underlying byte slice representing the bitset.
+func (bbs ByteBitSet) Bytes() []byte {
+	return bbs.mask
 }
 
-// String returns a hexadecimal representation of the bitset.
-// Each byte in the bitset is converted to two hexadecimal characters.
-func (bs *ByteBitSet) String() string {
-	if len(bs.mask) == 0 {
+// String returns the hexadecimal string representation of the bitset.
+func (bbs ByteBitSet) String() string {
+	if len(bbs.mask) == 0 {
 		return ""
 	}
 
-	res := make([]byte, len(bs.mask)*2)
-	for i := range bs.mask {
-		left := (bs.mask[i] >> 4)
-		right := (bs.mask[i] &^ 0b11110000)
-		res[i*2] = nibbleMapping[left]
-		res[i*2+1] = nibbleMapping[right]
+	hex := make([]byte, len(bbs.mask)*2)
+	for i := 0; i < len(bbs.mask); i++ {
+		left := (bbs.mask[i] >> 4)
+		right := (bbs.mask[i] &^ 0b11110000)
+		hex[i*2] = nibbleMapping[left]
+		hex[i*2+1] = nibbleMapping[right]
 	}
-	return string(res)
+	return *(*string)(unsafe.Pointer(&hex))
 }
 
-// BinaryString returns binary representation of the bitset.
-// Each byte in the bitset is converted to 8 characters (0 or 1).
-// Zero bit of the bitset will be at the end of the string.
-func (bs *ByteBitSet) BinaryString() string {
-	if len(bs.mask) == 0 {
+// BinaryString returns the binary string representation of the bitset.
+// The leftmost bit corresponds to the lowest index.
+func (bbs ByteBitSet) BinaryString() string {
+	if len(bbs.mask) == 0 {
 		return ""
 	}
 
-	var res string
-	for _, c := range bs.mask {
-		res += fmt.Sprintf("%08b", c)
-	}
-	return string(res)
-}
-
-func NewFromBinaryString(src string) (BitSet, error) {
-	var bs ByteBitSet
-	if len(src) == 0 {
-		return &bs, nil
-	}
-
-	for i, c := range []rune(src) {
-		if !(c == '0' || c == '1') {
-			return nil, ErrParseFailed
+	bin := make([]byte, len(bbs.mask)*8)
+	idx := 0
+	for _, c := range bbs.mask {
+		for i := 7; i >= 0; i-- {
+			bin[idx] = '0' + byte((c&(1<<i))>>i) // 0 or 1
+			idx++
 		}
-		bs.Set(src[i] == '1', uint(i))
 	}
-	return &bs, nil
+	return *(*string)(unsafe.Pointer(&bin))
 }
 
-func shiftByte(c byte) byte {
+func hexCharToNumber(c byte) byte {
 	switch {
 	case '0' <= c && c <= '9':
 		return c - '0'
@@ -253,26 +266,25 @@ func shiftByte(c byte) byte {
 	case c >= 'A' && c <= 'F':
 		return c - 'A' + 10
 	}
-	return invalidSymbol
+	return invalidNumber
 }
 
-func parsePair(b [2]byte) (uint8, error) {
+func parsePair(first, second byte) (uint8, error) {
 
-	var res uint8
+	var high, low byte
 
-	high := shiftByte(b[0])
-	if high == invalidSymbol {
+	if high = hexCharToNumber(first); high == invalidNumber {
 		return 0, ErrParseFailed
 	}
 
-	low := shiftByte(b[1])
-	if low == invalidSymbol {
+	if low = hexCharToNumber(second); low == invalidNumber {
 		return 0, ErrParseFailed
 	}
-	res = high*16 | low
-	return res, nil
+
+	return high<<4 | low, nil
 }
 
+// Validate quickly checks if the input byte slice is a valid hexadecimal representation of a BitSet.
 func Validate(buf []byte) error {
 	if len(buf) == 0 {
 		return nil
@@ -283,31 +295,45 @@ func Validate(buf []byte) error {
 	}
 
 	for i := 0; i < len(buf); i += 2 {
-		if _, err := parsePair([2]byte(buf[i : i+2])); err != nil {
+		if _, err := parsePair(buf[i], buf[i+1]); err != nil {
 			return ErrParseFailed
 		}
 	}
 	return nil
 }
 
-// AreSet receives a hexadecimal string representation of a BitSet and checks
-// if all specified bits are set to 1.
-func AreSet(buf []byte, rule CompareRule, bitpos ...uint) (bool, error) {
+// AreSet evaluates whether all or any specified bits are set, based on the rule,
+// using a hexadecimal string representation of the bitset.
+func AreSet(hexStr string, rule CompareRule, bits ...uint) (bool, error) {
 
-	if len(buf) == 0 {
+	n := len(hexStr)
+	if n == 0 || len(bits) == 0 {
 		return false, nil
 	}
 
-	for _, pos := range bitpos {
-		bytePos := pos / 8
-		inBytePos := 7 - pos%8
+	if n%2 == 1 {
+		return false, ErrInvalidSourceString
+	}
 
-		byt, err := hexPairToByte(buf[bytePos*2], buf[bytePos*2+1])
+	buf := unsafe.Slice(unsafe.StringData(hexStr), len(hexStr))
+	hexBits := uint(len(buf) / 2 * 8)
+
+	for _, bit := range bits {
+		if bit >= hexBits {
+			// if bit is out of bounds
+			if rule == All {
+				return false, nil
+			}
+			continue
+		}
+
+		bn, bitn := offsets(bit)
+		byteVal, err := parsePair(buf[bn*2], buf[bn*2+1])
 		if err != nil {
 			return false, err
 		}
 
-		val := (byt >> inBytePos) & 1
+		val := (byteVal >> bitn) & 1
 		if rule == All && val == 0 {
 			return false, nil
 		}
@@ -322,31 +348,9 @@ func AreSet(buf []byte, rule CompareRule, bitpos ...uint) (bool, error) {
 	}
 
 	// we come here if rule equals to Any
-
 	return false, nil
 }
 
-// Empty returns true if BitSet is not initialized.
-func (bs *ByteBitSet) Empty() bool {
-	return len(bs.mask) == 0
-}
-
-func hexPairToByte(left, right byte) (byte, error) {
-	if left >= '0' && left <= '9' {
-		left -= '0'
-	} else if left >= 'a' && left <= 'f' {
-		left -= 'a' - 10
-	} else {
-		return 0, fmt.Errorf("invalid hex byte: %c", left)
-	}
-
-	if right >= '0' && right <= '9' {
-		right -= '0'
-	} else if right >= 'a' && right <= 'f' {
-		right -= 'a' - 10
-	} else {
-		return 0, fmt.Errorf("invalid hex byte: %c", right)
-	}
-
-	return (left << 4) | right, nil
+func offsets(bit uint) (uint, uint) {
+	return bit / 8, 7 - bit%8
 }
