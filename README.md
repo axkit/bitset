@@ -188,4 +188,4 @@ fmt.Println("Binary:", binaryStr)
 
 ## Licensing
 
-This package is open-source and distributed under the MIT License. Contributions and feedback are welcome!
+This project is licensed under the MIT License. See the `LICENSE` file for details.
