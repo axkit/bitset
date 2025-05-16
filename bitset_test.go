@@ -224,7 +224,7 @@ func TestValidate(t *testing.T) {
 
 func TestAreSet(t *testing.T) {
 	t.Run("empty input", func(t *testing.T) {
-		res, err := AreSet("b3", All)
+		res, err := AreSet([]byte("b3"), All)
 		if err != nil {
 			t.Error("expected no error, got:", err)
 		}
@@ -234,7 +234,7 @@ func TestAreSet(t *testing.T) {
 	})
 
 	t.Run("invalid input", func(t *testing.T) {
-		res, err := AreSet("x1", All, 0, 1)
+		res, err := AreSet([]byte("x1"), All, 0, 1)
 		if err == nil {
 			t.Error("expected error for invalid hex string")
 		}
@@ -244,7 +244,7 @@ func TestAreSet(t *testing.T) {
 	})
 
 	t.Run("odd-length input", func(t *testing.T) {
-		res, err := AreSet("b31", All, 0, 1)
+		res, err := AreSet([]byte("b31"), All, 0, 1)
 		if err == nil {
 			t.Error("expected error for odd-length hex string")
 		}
@@ -253,7 +253,7 @@ func TestAreSet(t *testing.T) {
 		}
 	})
 	t.Run("valid input: all", func(t *testing.T) {
-		res, err := AreSet("b3", All, 0, 2, 3, 6, 7)
+		res, err := AreSet([]byte("b3"), All, 0, 2, 3, 6, 7)
 		if err != nil {
 			t.Error("expected no error, got:", err)
 		}
@@ -264,7 +264,7 @@ func TestAreSet(t *testing.T) {
 
 	t.Run("valid input: all subset", func(t *testing.T) {
 
-		res, err := AreSet("b3", All, 0, 6)
+		res, err := AreSet([]byte("b3"), All, 0, 6)
 		if err != nil {
 			t.Error("expected bit 6 to be unset")
 			t.FailNow()
@@ -274,7 +274,7 @@ func TestAreSet(t *testing.T) {
 		}
 	})
 	t.Run("valid input: any", func(t *testing.T) {
-		res, err := AreSet("b3", Any, 1, 4, 6)
+		res, err := AreSet([]byte("b3"), Any, 1, 4, 6)
 		if err != nil {
 			t.Error("expected no error, got:", err)
 		}
@@ -283,12 +283,24 @@ func TestAreSet(t *testing.T) {
 		}
 	})
 	t.Run("valid input: any, invalid subset", func(t *testing.T) {
-		res, err := AreSet("b3", Any, 5, 15)
+		res, err := AreSet([]byte("b3"), Any, 5, 15)
 		if err != nil {
 			t.Error("expected no error, got:", err)
 		}
 		if res {
 			t.Error("expected bits 5 and 15 to be unset")
+		}
+	})
+}
+
+func TestAreSetHexStr(t *testing.T) {
+	t.Run("empty input", func(t *testing.T) {
+		res, err := AreSetHexStr("b3", All)
+		if err != nil {
+			t.Error("expected no error, got:", err)
+		}
+		if res {
+			t.Error("expected no bits to be checked")
 		}
 	})
 }
@@ -421,7 +433,7 @@ func BenchmarkByteBitSet_AreSet_Five(b *testing.B) {
 }
 
 func BenchmarkAreSet(b *testing.B) {
-	hexString := "b3aaccddff115678901212121212121212121212121212121212121212121212121212121212121212"
+	hexString := []byte("b3aaccddff115678901212121212121212121212121212121212121212121212121212121212121212")
 	b.ResetTimer()
 	for b.Loop() {
 		_, _ = AreSet(hexString, All, 2, 3)

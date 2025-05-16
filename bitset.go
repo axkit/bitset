@@ -303,8 +303,19 @@ func Validate(buf []byte) error {
 }
 
 // AreSet evaluates whether all or any specified bits are set, based on the rule,
-// using a hexadecimal string representation of the bitset.
-func AreSet(hexStr string, rule CompareRule, bits ...uint) (bool, error) {
+// using a hexadecimal string representation of the bitset as input.
+func AreSet(hexStr []byte, rule CompareRule, bits ...uint) (bool, error) {
+	return areSet(hexStr, rule, bits...)
+}
+
+// AreSetHexStr evaluates whether all or any specified bits are set, based on the rule,
+// using a hexadecimal string representation of the bitset as input.
+func AreSetHexStr(hexStr string, rule CompareRule, bits ...uint) (bool, error) {
+	buf := unsafe.Slice(unsafe.StringData(hexStr), len(hexStr))
+	return areSet(buf, rule, bits...)
+}
+
+func areSet(hexStr []byte, rule CompareRule, bits ...uint) (bool, error) {
 
 	n := len(hexStr)
 	if n == 0 || len(bits) == 0 {
@@ -315,8 +326,7 @@ func AreSet(hexStr string, rule CompareRule, bits ...uint) (bool, error) {
 		return false, ErrInvalidSourceString
 	}
 
-	buf := unsafe.Slice(unsafe.StringData(hexStr), len(hexStr))
-	hexBits := uint(len(buf) / 2 * 8)
+	hexBits := uint(len(hexStr) / 2 * 8)
 
 	for _, bit := range bits {
 		if bit >= hexBits {
@@ -328,7 +338,7 @@ func AreSet(hexStr string, rule CompareRule, bits ...uint) (bool, error) {
 		}
 
 		bn, bitn := offsets(bit)
-		byteVal, err := parsePair(buf[bn*2], buf[bn*2+1])
+		byteVal, err := parsePair(hexStr[bn*2], hexStr[bn*2+1])
 		if err != nil {
 			return false, err
 		}
